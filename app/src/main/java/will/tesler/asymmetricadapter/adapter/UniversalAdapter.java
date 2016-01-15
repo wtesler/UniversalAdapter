@@ -1,10 +1,6 @@
 package will.tesler.asymmetricadapter.adapter;
 
-import android.support.annotation.LayoutRes;
-import android.support.v4.util.ArrayMap;
-import android.support.v4.util.SimpleArrayMap;
 import android.support.v7.widget.RecyclerView;
-import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
 import java.lang.reflect.Constructor;
@@ -12,14 +8,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Random;
 
-public class AsymmetricAdapter extends RecyclerView.Adapter<AsymmetricAdapter.Transformer> {
+public class UniversalAdapter extends RecyclerView.Adapter<Transformer> {
 
     private Map<String, Section> mSections = new LinkedHashMap<>();
 
     /**
      * First class is the model, the second class is the transformer for that model.
      */
-    private Map<Class<?>, Class<? extends Transformer>> mRegistrar = new ArrayMap<>();
+    private Map<Class<?>, Class<? extends Transformer>> mRegistrar = new LinkedHashMap<>();
 
     private Random mRandom = new Random();
 
@@ -97,31 +93,19 @@ public class AsymmetricAdapter extends RecyclerView.Adapter<AsymmetricAdapter.Tr
         return addStatus;
     }
 
-    private void verify(Section section) throws ModelNotRegisteredException {
-        for (Object object : section.getItems()) {
-            if (mRegistrar.get(object.getClass()) == null) {
-                throw new ModelNotRegisteredException(String.format("%s has not " +
-                        "been registered.", object.getClass().getName()));
-            }
-        }
-    }
-
-    /**
-     * Gets the model at a particular visual position.
-     *
-     * @param position The position.
-     * @return The model at a particular visual position.
-     */
-    private Object getModel(int position) {
-        int sectionEnd = 0;
+    public void add(int adapterPosition, Object item) {
+        int count = 0;
         for (Section section : mSections.values()) {
-            int sectionStart = sectionEnd;
-            sectionEnd += section.size();
-            if (position < sectionEnd) {
-                return section.get(position - sectionStart);
+            count += section.size();
+            if (adapterPosition <= count) {
+                section.add(count - (count - adapterPosition), item);
+                notifyItemInserted(adapterPosition);
+                return;
             }
         }
-        throw new IndexOutOfBoundsException(Integer.toString(position));
+        throw new IndexOutOfBoundsException("Adapter position " + adapterPosition + " was out of bounds on an adapter" +
+                " " +
+                "of size " + getItemCount());
     }
 
     public void clear(boolean shouldNotify) {
@@ -164,80 +148,30 @@ public class AsymmetricAdapter extends RecyclerView.Adapter<AsymmetricAdapter.Tr
         throw new SectionNotFoundException("Section with tag " + tag + " was not found.");
     }
 
-    public void add(int adapterPosition, Object item) {
-        int count = 0;
-        for (Section section : mSections.values()) {
-            count += section.size();
-            if (adapterPosition <= count) {
-                section.add(count - (count - adapterPosition), item);
-                notifyItemInserted(adapterPosition);
-                return;
+    private void verify(Section section) throws ModelNotRegisteredException {
+        for (Object object : section.getItems()) {
+            if (mRegistrar.get(object.getClass()) == null) {
+                throw new ModelNotRegisteredException(String.format("%s has not " +
+                        "been registered.", object.getClass().getName()));
             }
         }
-        throw new IndexOutOfBoundsException("Adapter position " + adapterPosition + " was out of bounds on an adapter" +
-                " " +
-                "of size " + getItemCount());
     }
 
-    public class AddStatus {
-
-        private String mTag;
-        private boolean mReplaced;
-
-        private AddStatus(String tag, boolean replaced) {
-            mTag = tag;
-            mReplaced = replaced;
+    /**
+     * Gets the model at a particular visual position.
+     *
+     * @param position The position.
+     * @return The model at a particular visual position.
+     */
+    private Object getModel(int position) {
+        int sectionEnd = 0;
+        for (Section section : mSections.values()) {
+            int sectionStart = sectionEnd;
+            sectionEnd += section.size();
+            if (position < sectionEnd) {
+                return section.get(position - sectionStart);
+            }
         }
-
-        public String getTag() {
-            return mTag;
-        }
-
-        public boolean wasReplaced() {
-            return mReplaced;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("{%s, %s}", mTag, mReplaced);
-        }
-
-        @Override
-        public int hashCode() {
-            return mTag.hashCode();
-        }
-    }
-
-    public static abstract class Transformer<T> extends RecyclerView.ViewHolder {
-
-        protected Transformer(@LayoutRes int layoutId, ViewGroup parent) {
-            super(LayoutInflater.from(parent.getContext()).inflate(layoutId, parent, false));
-        }
-
-        public abstract void transform(T model);
-    }
-
-    public class ModelNotRegisteredException extends RuntimeException {
-        private final String mMessage;
-
-        public ModelNotRegisteredException(String message) {
-            mMessage = message;
-        }
-
-        public String getMessage() {
-            return mMessage;
-        }
-    }
-
-    public class SectionNotFoundException extends RuntimeException {
-        private final String mMessage;
-
-        public SectionNotFoundException(String message) {
-            mMessage = message;
-        }
-
-        public String getMessage() {
-            return mMessage;
-        }
+        throw new IndexOutOfBoundsException(Integer.toString(position));
     }
 }

@@ -13,13 +13,14 @@ import android.widget.Toast;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
-import will.tesler.asymmetricadapter.adapter.AsymmetricAdapter;
+import will.tesler.asymmetricadapter.adapter.Transformer;
+import will.tesler.asymmetricadapter.adapter.UniversalAdapter;
 
 public class AsymmetricAdapterActivity extends AppCompatActivity {
 
     @Bind(R.id.recyclerview_asymmetric) RecyclerView mRecyclerView;
 
-    private AsymmetricAdapter mAsymmetricAdapter;
+    private UniversalAdapter mUniversalAdapter;
     private LinearLayoutManager mLayoutManager;
 
     @Override
@@ -31,27 +32,27 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
         mLayoutManager = new LinearLayoutManager(this);
         mRecyclerView.setLayoutManager(mLayoutManager);
 
-        mAsymmetricAdapter = new AsymmetricAdapter();
+        mUniversalAdapter = new UniversalAdapter();
 
-        mAsymmetricAdapter.register(ModelA.class, TransformerA.class);
-        mAsymmetricAdapter.register(ModelB.class, TransformerB.class);
-        mAsymmetricAdapter.register(ModelC.class, TransformerC.class);
+        mUniversalAdapter.register(ModelA.class, TransformerA.class);
+        mUniversalAdapter.register(ModelB.class, TransformerB.class);
+        mUniversalAdapter.register(ModelC.class, TransformerC.class);
 
-        mRecyclerView.setAdapter(mAsymmetricAdapter);
+        mRecyclerView.setAdapter(mUniversalAdapter);
 
-        mAsymmetricAdapter.add(new ModelA(1));
-        mAsymmetricAdapter.add(new ModelB("Red", Color.RED));
-        mAsymmetricAdapter.add(new ModelA(2));
-        mAsymmetricAdapter.add(new ModelB("Green", Color.GREEN));
-        mAsymmetricAdapter.add(new ModelB("Yellow", Color.YELLOW));
-        mAsymmetricAdapter.add(new ModelC());
-        mAsymmetricAdapter.add(new ModelB("Blue", Color.BLUE));
-        mAsymmetricAdapter.add(new ModelA(3));
-        mAsymmetricAdapter.add(new ModelA(4));
-        mAsymmetricAdapter.add(new ModelC());
+        mUniversalAdapter.add(new ModelA(1));
+        mUniversalAdapter.add(new ModelB("Red", Color.RED));
+        mUniversalAdapter.add(new ModelA(2));
+        mUniversalAdapter.add(new ModelB("Green", Color.GREEN));
+        mUniversalAdapter.add(new ModelB("Yellow", Color.YELLOW));
+        mUniversalAdapter.add(new ModelC());
+        mUniversalAdapter.add(new ModelB("Blue", Color.BLUE));
+        mUniversalAdapter.add(new ModelA(3));
+        mUniversalAdapter.add(new ModelA(4));
+        mUniversalAdapter.add(new ModelC());
     }
 
-    static class TransformerA extends AsymmetricAdapter.Transformer<ModelA> {
+    static class TransformerA extends Transformer<ModelA> {
 
         @Bind(R.id.edittext_a) EditText edittext_a;
 
@@ -62,11 +63,11 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
 
         @Override
         public void transform(ModelA model) {
-            edittext_a.setText(Integer.toString(model.getId()));
+            edittext_a.setText(Integer.toString(model.id));
         }
     }
 
-    static class TransformerB extends AsymmetricAdapter.Transformer<ModelB> {
+    static class TransformerB extends Transformer<ModelB> {
 
         @Bind(R.id.viewgroup_b) ViewGroup viewgroup_b;
         @Bind(R.id.button_b) Button button_b;
@@ -78,8 +79,8 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
 
         @Override
         public void transform(ModelB model) {
-            button_b.setText(model.getAction());
-            viewgroup_b.setBackgroundColor(model.getColor());
+            button_b.setText(model.action);
+            viewgroup_b.setBackgroundColor(model.color);
         }
 
         @OnClick(R.id.button_b)
@@ -88,7 +89,7 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
         }
     }
 
-    static class TransformerC extends AsymmetricAdapter.Transformer<ModelC> {
+    static class TransformerC extends Transformer<ModelC> {
 
         public TransformerC(ViewGroup parent) {
             super(R.layout.layout_c, parent);
@@ -99,34 +100,18 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
     }
 
     public class ModelA {
-
-        private final int mId;
-
+        public final int id;
         ModelA(int id) {
-            mId = id;
-        }
-
-        public int getId() {
-            return mId;
+            this.id = id;
         }
     }
 
     public class ModelB {
-
-        private final String mAction;
-        private final int mColor;
-
+        public final String action;
+        public final int color;
         ModelB(String action, int color) {
-            mAction = action;
-            mColor = color;
-        }
-
-        public String getAction() {
-            return mAction;
-        }
-
-        public int getColor() {
-            return mColor;
+            this.action = action;
+            this.color = color;
         }
     }
 
