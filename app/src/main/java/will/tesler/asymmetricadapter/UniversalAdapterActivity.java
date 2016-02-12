@@ -10,13 +10,18 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import java.util.List;
+
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import will.tesler.asymmetricadapter.adapter.Binder;
+import will.tesler.asymmetricadapter.adapter.Listener;
 import will.tesler.asymmetricadapter.adapter.UniversalAdapter;
 
-public class AsymmetricAdapterActivity extends AppCompatActivity {
+public class UniversalAdapterActivity extends AppCompatActivity implements Listener<UniversalAdapterActivity.ModelB> {
+
+    private static final String ACTION_BUTTON_CLICK = "ACTION_BUTTONCLICK";
 
     @Bind(R.id.recyclerview_asymmetric) RecyclerView mRecyclerView;
 
@@ -41,15 +46,22 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
         mRecyclerView.setAdapter(mUniversalAdapter);
 
         mUniversalAdapter.add(new ModelA(1));
-        mUniversalAdapter.add(new ModelB("Red", Color.RED));
+        mUniversalAdapter.add(new ModelB("Red", Color.RED), this);
         mUniversalAdapter.add(new ModelA(2));
-        mUniversalAdapter.add(new ModelB("Green", Color.GREEN));
-        mUniversalAdapter.add(new ModelB("Yellow", Color.YELLOW));
+        mUniversalAdapter.add(new ModelB("Green", Color.GREEN), this);
+        mUniversalAdapter.add(new ModelB("Yellow", Color.YELLOW), this);
         mUniversalAdapter.add(new ModelC());
-        mUniversalAdapter.add(new ModelB("Blue", Color.BLUE));
+        mUniversalAdapter.add(new ModelB("Blue", Color.BLUE), this);
         mUniversalAdapter.add(new ModelA(3));
         mUniversalAdapter.add(new ModelA(4));
         mUniversalAdapter.add(new ModelC());
+    }
+
+    @Override
+    public void onEvent(ModelB model, String event) {
+        if (ACTION_BUTTON_CLICK.equals(event)) {
+            Toast.makeText(this, model.action + " clicked.", Toast.LENGTH_SHORT).show();
+        }
     }
 
     static class BinderA extends Binder<ModelA> {
@@ -58,34 +70,41 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
 
         public BinderA(ViewGroup parent) {
             super(R.layout.layout_a, parent);
-            ButterKnife.bind(this, itemView);
+            ButterKnife.bind(this, getView());
         }
 
         @Override
-        public void bind(ModelA model) {
+        public void bind(ModelA model, List<Listener<ModelA>> listeners) {
             edittext_a.setText(Integer.toString(model.id));
         }
     }
 
     static class BinderB extends Binder<ModelB> {
 
+        ModelB mModel;
+        List<Listener<ModelB>> mListeners;
+
         @Bind(R.id.viewgroup_b) ViewGroup viewgroup_b;
         @Bind(R.id.button_b) Button button_b;
 
         public BinderB(ViewGroup parent) {
             super(R.layout.layout_b, parent);
-            ButterKnife.bind(this, itemView);
+            ButterKnife.bind(this, getView());
         }
 
         @Override
-        public void bind(ModelB model) {
+        public void bind(ModelB model, List<Listener<ModelB>> listeners) {
+            mModel = model;
+            mListeners = listeners;
             button_b.setText(model.action);
             viewgroup_b.setBackgroundColor(model.color);
         }
 
         @OnClick(R.id.button_b)
         public void buttonClick() {
-            Toast.makeText(itemView.getContext(), button_b.getText() + " clicked.", Toast.LENGTH_SHORT).show();
+            for (Listener<ModelB> listener : mListeners) {
+                listener.onEvent(mModel, ACTION_BUTTON_CLICK);
+            }
         }
     }
 
@@ -96,7 +115,7 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
         }
 
         @Override
-        public void bind(ModelC model) { }
+        public void bind(ModelC model, List<Listener<ModelC>> listeners) { }
     }
 
     public class ModelA {
