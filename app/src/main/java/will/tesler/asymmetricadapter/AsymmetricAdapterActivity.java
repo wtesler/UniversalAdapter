@@ -13,7 +13,7 @@ import android.widget.Toast;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
-import will.tesler.asymmetricadapter.adapter.Transformer;
+import will.tesler.asymmetricadapter.adapter.Binder;
 import will.tesler.asymmetricadapter.adapter.UniversalAdapter;
 
 public class AsymmetricAdapterActivity extends AppCompatActivity {
@@ -34,9 +34,9 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
 
         mUniversalAdapter = new UniversalAdapter();
 
-        mUniversalAdapter.register(ModelA.class, TransformerA.class);
-        mUniversalAdapter.register(ModelB.class, TransformerB.class);
-        mUniversalAdapter.register(ModelC.class, TransformerC.class);
+        mUniversalAdapter.register(ModelA.class, BinderA.class);
+        mUniversalAdapter.register(ModelB.class, BinderB.class);
+        mUniversalAdapter.register(ModelC.class, BinderC.class);
 
         mRecyclerView.setAdapter(mUniversalAdapter);
 
@@ -52,33 +52,33 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
         mUniversalAdapter.add(new ModelC());
     }
 
-    static class TransformerA extends Transformer<ModelA> {
+    static class BinderA extends Binder<ModelA> {
 
         @Bind(R.id.edittext_a) EditText edittext_a;
 
-        public TransformerA(ViewGroup parent) {
+        public BinderA(ViewGroup parent) {
             super(R.layout.layout_a, parent);
             ButterKnife.bind(this, itemView);
         }
 
         @Override
-        public void transform(ModelA model) {
+        public void bind(ModelA model) {
             edittext_a.setText(Integer.toString(model.id));
         }
     }
 
-    static class TransformerB extends Transformer<ModelB> {
+    static class BinderB extends Binder<ModelB> {
 
         @Bind(R.id.viewgroup_b) ViewGroup viewgroup_b;
         @Bind(R.id.button_b) Button button_b;
 
-        public TransformerB(ViewGroup parent) {
+        public BinderB(ViewGroup parent) {
             super(R.layout.layout_b, parent);
             ButterKnife.bind(this, itemView);
         }
 
         @Override
-        public void transform(ModelB model) {
+        public void bind(ModelB model) {
             button_b.setText(model.action);
             viewgroup_b.setBackgroundColor(model.color);
         }
@@ -89,14 +89,14 @@ public class AsymmetricAdapterActivity extends AppCompatActivity {
         }
     }
 
-    static class TransformerC extends Transformer<ModelC> {
+    static class BinderC extends Binder<ModelC> {
 
-        public TransformerC(ViewGroup parent) {
+        public BinderC(ViewGroup parent) {
             super(R.layout.layout_c, parent);
         }
 
         @Override
-        public void transform(ModelC model) { }
+        public void bind(ModelC model) { }
     }
 
     public class ModelA {
