@@ -18,4 +18,6 @@ If you want to add and remove many models at the same time, you simply create a
   
 You can add listeners to individual models or to entire model classes.
 
+See an example [here](app/src/main/java/will/tesler/asymmetricadapter/AsymmetricAdapterActivity.java) of it's simple use in an Activity.
+
 -Will Tesler
