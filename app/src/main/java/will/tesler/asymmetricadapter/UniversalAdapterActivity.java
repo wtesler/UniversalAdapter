@@ -15,11 +15,11 @@ import java.util.List;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
-import will.tesler.asymmetricadapter.adapter.AddStatus;
 import will.tesler.asymmetricadapter.adapter.Section;
-import will.tesler.asymmetricadapter.adapter.Transformer;
-import will.tesler.asymmetricadapter.adapter.Listener;
 import will.tesler.asymmetricadapter.adapter.UniversalAdapter;
+import will.tesler.asymmetricadapter.adapter.UniversalAdapter.AddResult;
+import will.tesler.asymmetricadapter.adapter.UniversalAdapter.Listener;
+import will.tesler.asymmetricadapter.adapter.UniversalAdapter.Transformer;
 
 public class UniversalAdapterActivity extends AppCompatActivity {
 
@@ -54,14 +54,9 @@ public class UniversalAdapterActivity extends AppCompatActivity {
             for (int j = 0; j < 16; j++) {
                 section.add(new ColorModel(Color.rgb(i * 16 + j, i * 16 + j, i * 16 + j)));
             }
-            AddStatus addStatus = mUniversalAdapter.add(section);
+            AddResult addStatus = mUniversalAdapter.add(section);
             mSectionTags.add(addStatus.getTag());
         }
-    }
-
-    @OnClick(R.id.button_odd)
-    public void removeOddSections() {
-
     }
 
     public class ColorModel {

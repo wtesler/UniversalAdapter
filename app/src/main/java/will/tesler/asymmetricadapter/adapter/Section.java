@@ -7,13 +7,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import will.tesler.asymmetricadapter.adapter.UniversalAdapter.Listener;
+
 /**
- * A model representing a list of section items. If the model contains a header, it is held in the first position of
- * the list.
+ * A Section groups models together and associates each model with it's listeners. A section is for use with the
+ * {@link UniversalAdapter}. An optional header can be added to a section with {code setHeader} and it will be
+ * treated separately from the other items.
  */
 public class Section {
 
-    private List<Object> mItems = new ArrayList<>();
+    private List<Object> mModels = new ArrayList<>();
     private List<List<Listener>> mListeners = new ArrayList<>();
 
     private boolean mHasHeader;
@@ -24,95 +27,90 @@ public class Section {
     public Section() { }
 
     /**
-     * Constructs a Section with the given header. Useful when clustering items in list.
+     * Constructs a Section given a header.
      *
-     * @param header A header item.
-     * @param listeners A variable amount of listeners to attach to the item.
+     * @param headerModel A header model.
+     * @param listeners A variable amount of listeners to attach to the header.
      */
     @SafeVarargs
-    public <T> Section(@NonNull T header, Listener<T>... listeners) {
-        mItems.add(header);
+    public <T> Section(@NonNull T headerModel, Listener<T>... listeners) {
+        mModels.add(headerModel);
         mListeners.add(Arrays.<Listener>asList(listeners));
         mHasHeader = true;
     }
 
     /**
-     * Adds a header to the section.
+     * Adds a model to the end of the section.
      *
-     * @param header A header item.
-     * @param listeners A variable amount of listeners to attach to the item.
-     * @throws IllegalStateException thrown if a header already exists.
+     * @param model The model.
+     * @param listeners A variable amount of listeners to attach to the model.
      */
     @SafeVarargs
-    public final <T> void addHeader(T header, Listener<T>... listeners) {
-        if (mHasHeader) {
-            throw new IllegalStateException("Section already has a header.");
-        } else {
-            mItems.add(0, header);
-            mListeners.add(0, Arrays.<Listener>asList(listeners));
-            mHasHeader = true;
-        }
-    }
-
-    /**
-     * Removes the header from the section.
-     *
-     * @throws IllegalStateException thrown if no header exists.
-     */
-    public void removeHeader() {
-        if (hasHeader()) {
-            mItems.remove(0);
-            mListeners.remove(0);
-            mHasHeader = false;
-        } else {
-            throw new IllegalStateException("Section does not contain a header,");
-        }
-    }
-
-    /**
-     * Adds an item to the section. The header will remain the same.
-     *
-     * @param item The item.
-     * @param listeners A variable amount of listeners to attach to the item.
-     */
-    @SafeVarargs
-    public final <T> void add(T item, Listener<T>... listeners) {
-        mItems.add(item);
+    public final <T> void add(T model, Listener<T>... listeners) {
+        mModels.add(model);
         mListeners.add(Arrays.<Listener>asList(listeners));
     }
 
     /**
-     * Adds an item to the section at the specified position.
+     * Adds a model to the section at the specified position. Does not take the header into account.
      *
-     * @param position The position of the item in the section.
-     * @param item The item.
+     * @param position The position where the model will be placed.
+     * @param model The model.
      * @param listeners A variable amount of listeners to attach to the item.
      */
     @SafeVarargs
-    public final <T> void add(int position, Object item, Listener<T>... listeners) {
-        mItems.add(position, item);
-        mListeners.add(position, Arrays.<Listener>asList(listeners));
+    public final <T> void add(int position, Object model, Listener<T>... listeners) {
+        int absolutePosition = hasHeader() ? position + 1 : position;
+        mModels.add(absolutePosition, model);
+        mListeners.add(absolutePosition, Arrays.<Listener>asList(listeners));
     }
 
     /**
-     * Removes and returns the item at the given position in the section.
-     * @param position The position of the item in the section.
-     * @return
+     * Removes and returns the model at the given position in the section. Includes the header.
+     *
+     * @param position The position of the model in the section.
      */
     public Object remove(int position) {
+        if (hasHeader() && position == 0) {
+            mHasHeader = false;
+        }
+
         mListeners.remove(position);
-        return mItems.remove(position);
+        return mModels.remove(position);
     }
 
     /**
-     * Sets the items for the section. The header will remain the same.
+     * Get the model at the given position.
      *
-     * @param items the items.
+     * @param position The position of the item in the section.
+     * @return The model at the given position in the section.
      */
-    public void setItems(List<Object> items) {
-        clear();
-        mItems.addAll(items);
-        for (int i = 0; i < items.size(); i++) {
+    public Object getModel(int position) {
+        return mModels.get(position);
+    }
+
+    /**
+     * Get all the model in the section excluding the header.
+     *
+     * @return All the items in the section excluding the header.
+     */
+    public List<Object> getModels() {
+        if (hasHeader()) {
+            return mModels.subList(1, mModels.size());
+        } else {
+            return mModels;
+        }
+    }
+
+    /**
+     * Removes all existing models in the section and adds all the given models. The header will remain the same.
+     *
+     * @param models the models.
+     */
+    public void setModels(List<Object> models) {
+        clearModels();
+        mModels.addAll(models);
+        for (int i = 0; i < models.size(); i++) {
             mListeners.add(new ArrayList<Listener>());
         }
     }
@@ -120,40 +118,21 @@ public class Section {
     /**
      * Removes all the items but leaves the header.
      */
-    public void clear() {
+    public void clearModels() {
         if (hasHeader()) {
-            mItems.subList(1, mItems.size()).clear();
-            mListeners.subList(1, mItems.size()).clear();
+            mModels.subList(1, mModels.size()).clear();
+            mListeners.subList(1, mModels.size()).clear();
         } else {
-            reset();
+            clearSection();
         }
     }
 
     /**
      * Removes all the items including the header.
      */
-    public void reset() {
-        mItems.clear();
+    public void clearSection() {
+        mModels.clear();
         mHasHeader = false;
-    }
-
-    /**
-     * Get all the items in the section including the header.
-     *
-     * @return All the items in the section including the header.
-     */
-    public List<Object> getItems() {
-        return mItems;
-    }
-
-    /**
-     * The item at the given position.
-     *
-     * @param position The position of the item in the section.
-     * @return The item at the given position in the section.
-     */
-    public Object getItem(int position) {
-        return mItems.get(position);
     }
 
     /**
@@ -167,7 +146,45 @@ public class Section {
     }
 
     /**
-     * Checks whether the section contains a header item.
+     * The item at the header position or null if there is no header.
+     *
+     * @return The item at the header position in the section or null.
+     */
+    @Nullable
+    public Object getHeader() {
+        return hasHeader() ? mModels.get(0) : null;
+    }
+
+    /**
+     * Adds a header to the section.
+     *
+     * @param header A header item.
+     * @param listeners A variable amount of listeners to attach to the item.
+     * @throws IllegalStateException thrown if a header already exists.
+     */
+    @SafeVarargs
+    public final <T> void setHeader(T header, Listener<T>... listeners) {
+        clearHeader();
+        mModels.add(0, header);
+        mListeners.add(0, Arrays.<Listener>asList(listeners));
+        mHasHeader = true;
+    }
+
+    /**
+     * Removes and returns the header if it exists.
+     */
+    @Nullable
+    public Object clearHeader() {
+        if (hasHeader()) {
+            mHasHeader = false;
+            mListeners.remove(0);
+            return mModels.remove(0);
+        }
+        return null;
+    }
+
+    /**
+     * Checks whether the section contains a header.
      *
      * @return {@code true} if the section contains a header.
      */
@@ -176,22 +193,12 @@ public class Section {
     }
 
     /**
-     * The item at the header position or null if there is no header.
-     *
-     * @return The item at the header position in the section or null.
-     */
-    @Nullable
-    public Object getHeader() {
-        return hasHeader() ? mItems.get(0) : null;
-    }
-
-    /**
      * The number of items in the section including the header.
      *
      * @return The number of total items in the section.
      */
     public int totalSize() {
-        return mItems.size();
+        return mModels.size();
     }
 
     /**
@@ -200,7 +207,6 @@ public class Section {
      * @return The number of content items in the section.
      */
     public int size() {
-        return hasHeader() ? mItems.size() - 1 : mItems.size();
+        return hasHeader() ? mModels.size() - 1 : mModels.size();
     }
 }
-

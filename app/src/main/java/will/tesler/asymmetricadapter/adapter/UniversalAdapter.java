@@ -1,26 +1,79 @@
 package will.tesler.asymmetricadapter.adapter;
 
-import android.support.v4.util.Pair;
+import android.content.Context;
+import android.support.annotation.LayoutRes;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import java.lang.reflect.Constructor;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
+import java.util.UUID;
 
-public class UniversalAdapter extends RecyclerView.Adapter<Transformer> {
+/**
+ * The UniversalAdapter is a composable non-abstract {@code RecyclerAdapter} which can be used as-is without needing to
+ * be extended. Define and register {@code Transformers} which tell the adapter how to bind a model to a view. A
+ * model can be any {@code Object}, meaning that the UniversalAdapter can handle multiple models and views inside the
+ * same adapter.
+ * <br/><br/>
+ * <b>Usage</b>
+ * <br/>
+ * Have a model {@code Object} you want to represent in the adapter.
+ * Construct a UniversalAdapter and assign it to your RecyclerView.
+ * Create a {@link will.tesler.asymmetricadapter.adapter.Transformer} which binds the model to a View.
+ * Register the transformer with the adapter.
+ * The adapter has a number of add operations such as {@code add(model)} or {@code add(section)}. The RecyclerView will
+ * automatically be notified of changes to the dataset.
+ * <br/><br/>
+ * You can tag models and sections for easy retrieval.
+ * <br/><br/>
+ * If you want to add and remove many models at the same time, you simply create a {@link Section} and call add(section,
+ * tag) or remove(tag) respectively.
+ * <br/><br/>
+ * Any class wishing to receive events from the views can implement a
+ * {@link will.tesler.asymmetricadapter.adapter.UniversalAdapter.Listener}.
+ */
+public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Transformer> {
 
+    /**
+     * Maps tags to corresponding sections. Insertion order is maintained because the sections must be iterable in
+     * order.
+     */
     private Map<String, Section> mSections = new LinkedHashMap<>();
 
     /**
-     * First class is the model, the second class is the transformer for that model.
+     * Maps model classes to corresponding transformer classes. Insertion order is maintained in order to determine
+     * view types.
      */
     private Map<Class<?>, Class<? extends Transformer>> mRegistrar = new LinkedHashMap<>();
 
-    private Random mTagGenerator = new Random();
+    /**
+     * Transform a model and listeners into a view. No need to check for raw type inference because it is implied
+     * by the registrar's structure.
+     *
+     * @param transformer The transformer.
+     * @param position The position of the corresponding model/listeners pair.
+     */
+    @SuppressWarnings("unchecked")
+    @Override
+    public void onBindViewHolder(Transformer transformer, int position) {
+        ModelListenerPair itemListenerPair = getModel(position);
+        transformer.transform(itemListenerPair.model, itemListenerPair.listeners);
+    }
 
+    /**
+     * Create a {@link will.tesler.asymmetricadapter.adapter.Transformer} for a given view type.
+     * the view type corresponds to the position of the transformer's class in the registrar. The transformer's class
+     * is expected to have a public constructor {@code Transformer(Viewgroup parent)}. Reflection is an important
+     * and necessary step in this method as it is the main way that providers are avoided in this adapter. Ensure
+     * that proguard does not alter the constructor.
+     */
+    @Nullable
     @Override
     public Transformer onCreateViewHolder(ViewGroup parent, int viewType) {
         int i = 0;
@@ -31,22 +84,21 @@ public class UniversalAdapter extends RecyclerView.Adapter<Transformer> {
                             transformer.getDeclaredConstructor(ViewGroup.class);
                     return constructor.newInstance(parent);
                 } catch (Exception e) {
-                    throw new RuntimeException( "Your custom Transformer must define a public constructor " +
-                            "Transformer(ViewGroup parent) must at least call into it's super constructor. Also, " +
-                            "ensure that your Transformer class is not an inner class. Here is the complete stacktrace:\n", e
-                            .getCause());
+                    throw new RuntimeException("Ensure that " + transformer.getSimpleName() +
+                            " defines a public constructor " + transformer.getSimpleName() + "(ViewGroup parent)." +
+                            " Also, ensure that your Transformer class is not an inner class." +
+                            " See the complete error below.", e);
                 }
             }
         }
         return null;
     }
 
-    @Override
-    public void onBindViewHolder(Transformer transformer, int position) {
-        Pair<Object, List<Listener>> itemWithListeners = getModel(position);
-        transformer.transform(itemWithListeners.first, itemWithListeners.second);
-    }
-
+    /**
+     * Gets the total item count of the adapter, including headers.
+     *
+     * @return The total item count of the adapter, including headers.
+     */
     @Override
     public int getItemCount() {
         int count = 0;
@@ -56,9 +108,12 @@ public class UniversalAdapter extends RecyclerView.Adapter<Transformer> {
         return count;
     }
 
+    /**
+     * The view type of a model is determined by its position in the registrar.
+     */
     @Override
     public int getItemViewType(int position) {
-        Object model = getModel(position).first;
+        Object model = getModel(position).model;
         int i = 0;
         for (Class<?> modelClass : mRegistrar.keySet()) {
             if (modelClass == model.getClass()) {
@@ -66,58 +121,91 @@ public class UniversalAdapter extends RecyclerView.Adapter<Transformer> {
             }
             i++;
         }
-        throw new ModelNotRegisteredException("View model: " + model.getClass() + " has not been registered");
+        throw new IllegalStateException(model.getClass() + " model has not been registered");
     }
 
-    public <T> void register(Class<T> model, Class<? extends Transformer<T>> transformer) {
-        mRegistrar.put(model, transformer);
+    /**
+     * Registers a model class with a transformer for that model class. This tells the adapter that a given model can
+     * be used to transform a view as defined in the transformer.
+     * @param modelClass The model class definition.
+     * @param transformerClass The transformer class for the model.
+     * @param <T> The model class.
+     */
+    public <T> void register(Class<T> modelClass, Class<? extends Transformer<T>> transformerClass) {
+        mRegistrar.put(modelClass, transformerClass);
     }
 
+    /**
+     * Adds a new model to the adapter. The model will be wrapped in a new {@link Section} before being added.
+     *
+     * @param model The model to add.
+     * @param listeners A variable amount of listeners to associate with the model.
+     * @param <T> The model class.
+     * @return An AddResult containing a tag which can be used to modify the section later.
+     */
     @SafeVarargs
-    public final <T> AddStatus add(T object, Listener<T>... listeners) {
+    @NonNull
+    public final <T> AddResult add(T model, Listener<T>... listeners) {
         Section section = new Section();
-        section.add(object, listeners);
+        section.add(model, listeners);
+        section.add(model, listeners);
         return add(section);
     }
 
+    /**
+     * Adds a model to the adapter. The model will be wrapped in a new {@link Section} before being added.
+     *
+     * @param model The model to add.
+     * @param tag The unique tag for the section.
+     * @param listeners A variable amount of listeners to associate with the model.
+     * @param <T> The model class.
+     *
+     * @return An AddResult which contains whether the add operation caused a section to be replaced.
+     */
     @SafeVarargs
-    public final <T> AddStatus add(String tag, T object, Listener<T>... listeners) {
+    @NonNull
+    public final <T> AddResult add(T model, String tag, Listener<T>... listeners) {
         Section section = new Section();
-        section.add(object, listeners);
-        return add(tag, section);
+        section.add(model, listeners);
+        return add(section, tag);
     }
 
-    @SafeVarargs
-    public final <T> void add(int adapterPosition, T item, Listener<T>... listeners) {
-        int count = 0;
-        for (Section section : mSections.values()) {
-            count += section.totalSize();
-            if (adapterPosition <= count) {
-                section.add(count - (count - adapterPosition), item, listeners);
-                notifyItemInserted(adapterPosition);
-                return;
-            }
-        }
-        throw new IndexOutOfBoundsException("Adapter position " + adapterPosition + " was out of bounds on an adapter" +
-                " " +
-                "of size " + getItemCount());
+    /**
+     * Adds a new {@link Section} to the adapter.
+     *
+     * @param section The section to add.
+     * @return An AddResult containing a tag which can be used to modify the section later.
+     */
+    @NonNull
+    public AddResult add(Section section) {
+        String tag = UUID.randomUUID().toString();
+        return add(section, tag);
     }
 
-    public AddStatus add(Section section) {
-        // Produce a tag that is not likely to ever be generated again.
-        String tag = Long.toString(mTagGenerator.nextLong());
-        return add(tag, section);
-    }
-
-    public AddStatus add(String tag, Section section) {
+    /**
+     * Adds a {@link Section} to the adapter, replacing any existing section that has the same tag.
+     *
+     * @param section The section to add.
+     * @param tag The unique tag for the section.
+     * @return An AddResult which contains whether the add operation caused a section to be replaced.
+     */
+    @NonNull
+    public AddResult add(Section section, String tag) {
         verify(section);
-        AddStatus addStatus;
-        addStatus = new AddStatus(tag, mSections.get(tag) != null);
+
+        AddResult addResult;
+        addResult = new AddResult(tag, mSections.get(tag) != null);
+
         mSections.put(tag, section);
         notifyDataSetChanged();
-        return addStatus;
+
+        return addResult;
     }
 
+    /**
+     * Clears all sections in the adapter.
+     * @param shouldNotify {@code true} if the adapter should call {@code notifyItemRangeRemoved} after clearing.
+     */
     public void clear(boolean shouldNotify) {
         int count = getItemCount();
         mSections.clear();
@@ -126,26 +214,45 @@ public class UniversalAdapter extends RecyclerView.Adapter<Transformer> {
         }
     }
 
-    public Section retrieve(String tag) {
+    /**
+     * Get a section by it's tag.
+     *
+     * @param tag The tag for the section.
+     * @return The section or null.
+     */
+    @Nullable
+    public Section get(String tag) {
         return mSections.get(tag);
     }
 
-    public Object remove(int adapterPosition) {
-        int count = 0;
+    /**
+     * Get the model and listeners for a particular adapter position. Can be useful when used with
+     * {@link android.support.v7.widget.RecyclerView.LayoutManager} methods.
+     *
+     * @param adapterPosition The adapter position.
+     * @return The model and listeners associated with a particular adapter position.
+     */
+    public ModelListenerPair get(int adapterPosition) {
+        int sectionEnd = 0;
         for (Section section : mSections.values()) {
-            count += section.totalSize();
-            if (adapterPosition < count) {
-                Object item = section.remove(count - (count - adapterPosition));
-                notifyItemRemoved(adapterPosition);
-                return item;
+            int sectionStart = sectionEnd;
+            sectionEnd += section.totalSize();
+            if (adapterPosition < sectionEnd) {
+                int sectionPosition = adapterPosition - sectionStart;
+                return new ModelListenerPair(section.getModel(sectionPosition), section.getListeners(sectionPosition));
             }
         }
-        throw new IndexOutOfBoundsException("Adapter position " + adapterPosition + " was out of bounds on an adapter" +
-                " " +
-                "of size " + getItemCount());
+        throw new IndexOutOfBoundsException(Integer.toString(adapterPosition));
     }
 
-    public Object remove(String tag) {
+    /**
+     * Removes a section from the adapter given it's tag.
+     *
+     * @param tag The tag for the section.
+     * @return The removed section.
+     */
+    @NonNull
+    public Section remove(String tag) {
         int count = 0;
         for (String sectionTag : mSections.keySet()) {
             if (sectionTag.equals(tag)) {
@@ -155,35 +262,182 @@ public class UniversalAdapter extends RecyclerView.Adapter<Transformer> {
             }
             count += mSections.get(sectionTag).totalSize();
         }
-        throw new SectionNotFoundException("Section with tag " + tag + " was not found.");
+        throw new RuntimeException("Section with tag " + tag + " was not found.");
     }
 
-    private void verify(Section section) throws ModelNotRegisteredException {
-        for (Object object : section.getItems()) {
+    /**
+     * Removes the model and listeners for a particular adapter position. Can be useful when used with
+     * {@link android.support.v7.widget.RecyclerView.LayoutManager} methods.
+     *
+     * @param adapterPosition The adapter position.
+     * @return The model associated with a particular adapter position.
+     */
+    public Object remove(int adapterPosition) {
+        int sectionEnd = 0;
+        for (Section section : mSections.values()) {
+            int sectionStart = sectionEnd;
+            sectionEnd += section.totalSize();
+            if (adapterPosition < sectionEnd) {
+                int sectionPosition = adapterPosition - sectionStart;
+                return section.remove(sectionPosition);
+            }
+        }
+        throw new IndexOutOfBoundsException(Integer.toString(adapterPosition));
+    }
+
+    /**
+     * Verify that every model in the section has been registered with the adapter.
+     *
+     * @param section The section.
+     * @throws IllegalStateException If a model in the section has not been registered.
+     */
+    private void verify(Section section) throws IllegalStateException {
+        for (Object object : section.getModels()) {
             if (mRegistrar.get(object.getClass()) == null) {
-                throw new ModelNotRegisteredException(String.format("%s has not " +
-                        "been registered.", object.getClass().getName()));
+                throw new IllegalStateException(String.format("%s has not been registered.",
+                        object.getClass().getSimpleName()));
             }
         }
     }
 
     /**
-     * Gets the model at a particular visual position.
-     * O(n)
+     * Gets the model and listeners at an adapter position.
      *
-     * @param position The position.
-     * @return The model at a particular visual position.
+     * @param adapterPosition The position.
+     * @return The model as well as any associated listeners.
      */
-    private Pair<Object, List<Listener>> getModel(int position) {
+    @NonNull
+    private ModelListenerPair getModel(int adapterPosition) {
         int sectionEnd = 0;
         for (Section section : mSections.values()) {
             int sectionStart = sectionEnd;
             sectionEnd += section.totalSize();
-            if (position < sectionEnd) {
-                int itemPosition = position - sectionStart;
-                return new Pair<>(section.getItem(itemPosition), section.getListeners(itemPosition));
+            if (adapterPosition < sectionEnd) {
+                int itemPosition = adapterPosition - sectionStart;
+                return new ModelListenerPair(section.getModel(itemPosition), section.getListeners(itemPosition));
             }
         }
-        throw new IndexOutOfBoundsException(Integer.toString(position));
+        throw new IndexOutOfBoundsException(Integer.toString(adapterPosition));
+    }
+
+    /**
+     * An AddResult is an immutable class returned by every add operation in the adapter. It contains a unique tag
+     * for the added section, as well as a boolean to determine whether the section was replaced by the add
+     * operation.
+     */
+    public static class AddResult {
+
+        private final String mTag;
+        private final boolean mReplaced;
+
+        /**
+         * Construct an immutable AddResult.
+         * @param tag The unique tag for the section.
+         * @param replaced {@code true} if the add operation caused the adapter to replace an existing section.
+         */
+        public AddResult(String tag, boolean replaced) {
+            mTag = tag;
+            mReplaced = replaced;
+        }
+
+        /**
+         * @return The unique tag for the section.
+         */
+        @NonNull
+        public String getTag() {
+            return mTag;
+        }
+
+        /**
+         * @return {@code true} if the add operation caused the adapter to replace an existing section.
+         */
+        public boolean wasReplaced() {
+            return mReplaced;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("{%s, %s}", mTag, mReplaced);
+        }
+
+        @Override
+        public int hashCode() {
+            return mTag.hashCode();
+        }
+    }
+
+    /**
+     * A immutable pair containing a model and a list of associated listeners.
+     */
+    public class ModelListenerPair {
+        @NonNull public final Object model;
+        @NonNull public final List<Listener> listeners;
+
+        ModelListenerPair(@NonNull Object model, @NonNull List<Listener> listener) {
+            this.model = model;
+            this.listeners = listener;
+        }
+    }
+
+    /**
+     * This class alters a view given a model. Every new model which is added to the adapter must first
+     * register a Transformer for that model with the adapter's {@code register} method.
+     *
+     * <br/><br/><b>Every class that extends
+     * this Transformer must define a public constructor {@code Transformer(ViewGroup parent)} which must at
+     * least call into the base constructor and supply a layout resource. This is also a good place to bind to views.
+     * </b>
+     *
+     * @param <T> The model which this Transformer will use to alter a view.
+     */
+    public static abstract class Transformer<T> extends RecyclerView.ViewHolder {
+
+        protected Transformer(@LayoutRes int layoutRes, ViewGroup parent) {
+            super(LayoutInflater.from(parent.getContext()).inflate(layoutRes, parent, false));
+        }
+
+        /**
+         * Alter the behavior and appearance of the view given the model and a list of listeners.
+         *
+         * @param model The model which will be used to alter the view.
+         * @param listeners A list of listeners to attach to the view.
+         */
+        protected abstract void transform(T model, List<Listener<T>> listeners);
+
+        /**
+         * Get the view that the model will be bound to.
+         *
+         * @return The view that the model will be bound to.
+         */
+        @NonNull
+        final protected View getView() {
+            return itemView;
+        }
+
+        /**
+         * Get the context that the view lives in.
+         *
+         * @return The context that the view lives in.
+         */
+        @NonNull
+        final protected Context getContext() {
+            return itemView.getContext();
+        }
+    }
+
+    /**
+     * A listener for events emitted by views in the adapter.
+     *
+     * @param <T> The model class associated with the view.
+     */
+    public interface Listener<T> {
+
+        /**
+         * A callback for events emitted by views in the adapter.
+         *
+         * @param model The model associated with the view.
+         * @param event The event which is triggering the listener.
+         */
+        void onEvent(T model, String event);
     }
 }
