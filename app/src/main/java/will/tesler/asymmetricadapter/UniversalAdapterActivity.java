@@ -7,134 +7,99 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.Toast;
+import android.widget.TextView;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
-import will.tesler.asymmetricadapter.adapter.Binder;
+import will.tesler.asymmetricadapter.adapter.AddStatus;
+import will.tesler.asymmetricadapter.adapter.Section;
+import will.tesler.asymmetricadapter.adapter.Transformer;
 import will.tesler.asymmetricadapter.adapter.Listener;
 import will.tesler.asymmetricadapter.adapter.UniversalAdapter;
 
-public class UniversalAdapterActivity extends AppCompatActivity implements Listener<UniversalAdapterActivity.ModelB> {
+public class UniversalAdapterActivity extends AppCompatActivity {
 
-    private static final String ACTION_BUTTON_CLICK = "ACTION_BUTTONCLICK";
-
-    @Bind(R.id.recyclerview_asymmetric) RecyclerView mRecyclerView;
+    @Bind(R.id.recyclerview_universal) RecyclerView mRecyclerView;
+    @Bind(R.id.button_odd) Button mButtonRemoveOdds;
 
     private UniversalAdapter mUniversalAdapter;
-    private LinearLayoutManager mLayoutManager;
+    private List<String> mSectionTags = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_asymmetric_adapter);
+
+        // Layout.
+        setContentView(R.layout.activity_universal_adapter);
         ButterKnife.bind(this);
 
-        mLayoutManager = new LinearLayoutManager(this);
-        mRecyclerView.setLayoutManager(mLayoutManager);
+        // Initialize recycler view.
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
+        // Create a Universal Adapter.
         mUniversalAdapter = new UniversalAdapter();
-
-        mUniversalAdapter.register(ModelA.class, BinderA.class);
-        mUniversalAdapter.register(ModelB.class, BinderB.class);
-        mUniversalAdapter.register(ModelC.class, BinderC.class);
-
         mRecyclerView.setAdapter(mUniversalAdapter);
 
-        mUniversalAdapter.add(new ModelA(1));
-        mUniversalAdapter.add(new ModelB("Red", Color.RED), this);
-        mUniversalAdapter.add(new ModelA(2));
-        mUniversalAdapter.add(new ModelB("Green", Color.GREEN), this);
-        mUniversalAdapter.add(new ModelB("Yellow", Color.YELLOW), this);
-        mUniversalAdapter.add(new ModelC());
-        mUniversalAdapter.add(new ModelB("Blue", Color.BLUE), this);
-        mUniversalAdapter.add(new ModelA(3));
-        mUniversalAdapter.add(new ModelA(4));
-        mUniversalAdapter.add(new ModelC());
-    }
+        // Register
+        mUniversalAdapter.register(ColorModel.class, ColorTransformer.class);
+        mUniversalAdapter.register(ColorHeader.class, HeaderTransformer.class);
 
-    @Override
-    public void onEvent(ModelB model, String event) {
-        if (ACTION_BUTTON_CLICK.equals(event)) {
-            Toast.makeText(this, model.action + " clicked.", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    static class BinderA extends Binder<ModelA> {
-
-        @Bind(R.id.edittext_a) EditText edittext_a;
-
-        public BinderA(ViewGroup parent) {
-            super(R.layout.layout_a, parent);
-            ButterKnife.bind(this, getView());
-        }
-
-        @Override
-        public void bind(ModelA model, List<Listener<ModelA>> listeners) {
-            edittext_a.setText(Integer.toString(model.id));
-        }
-    }
-
-    static class BinderB extends Binder<ModelB> {
-
-        ModelB mModel;
-        List<Listener<ModelB>> mListeners;
-
-        @Bind(R.id.viewgroup_b) ViewGroup viewgroup_b;
-        @Bind(R.id.button_b) Button button_b;
-
-        public BinderB(ViewGroup parent) {
-            super(R.layout.layout_b, parent);
-            ButterKnife.bind(this, getView());
-        }
-
-        @Override
-        public void bind(ModelB model, List<Listener<ModelB>> listeners) {
-            mModel = model;
-            mListeners = listeners;
-            button_b.setText(model.action);
-            viewgroup_b.setBackgroundColor(model.color);
-        }
-
-        @OnClick(R.id.button_b)
-        public void buttonClick() {
-            for (Listener<ModelB> listener : mListeners) {
-                listener.onEvent(mModel, ACTION_BUTTON_CLICK);
+        // Add grey color sections.
+        for (int i = 0; i < 16; i++) {
+            Section section = new Section(new ColorHeader());
+            for (int j = 0; j < 16; j++) {
+                section.add(new ColorModel(Color.rgb(i * 16 + j, i * 16 + j, i * 16 + j)));
             }
+            AddStatus addStatus = mUniversalAdapter.add(section);
+            mSectionTags.add(addStatus.getTag());
         }
     }
 
-    static class BinderC extends Binder<ModelC> {
+    @OnClick(R.id.button_odd)
+    public void removeOddSections() {
 
-        public BinderC(ViewGroup parent) {
-            super(R.layout.layout_c, parent);
-        }
-
-        @Override
-        public void bind(ModelC model, List<Listener<ModelC>> listeners) { }
     }
 
-    public class ModelA {
-        public final int id;
-        ModelA(int id) {
-            this.id = id;
-        }
-    }
-
-    public class ModelB {
-        public final String action;
+    public class ColorModel {
         public final int color;
-        ModelB(String action, int color) {
-            this.action = action;
+        ColorModel(int color) {
             this.color = color;
         }
     }
 
-    public class ModelC {
-        // Empty
+    public class ColorHeader {
+        ColorHeader() { }
+    }
+
+    public static class ColorTransformer extends Transformer<ColorModel> {
+
+        @Bind(R.id.viewgroup_background) ViewGroup background;
+        @Bind(R.id.textview_color) TextView color;
+
+        public ColorTransformer(ViewGroup parent) {
+            super(R.layout.layout_color, parent);
+            ButterKnife.bind(this, getView());
+        }
+
+        @Override
+        public void transform(ColorModel model, List<Listener<ColorModel>> listeners) {
+            background.setBackgroundColor(model.color);
+            color.setText(String.format("%d", Color.red(model.color) / 16));
+        }
+    }
+
+    public static class HeaderTransformer extends Transformer<ColorHeader> {
+
+        public HeaderTransformer(ViewGroup parent) {
+            super(R.layout.layout_header, parent);
+            ButterKnife.bind(this, getView());
+        }
+
+        @Override
+        public void transform(ColorHeader model, List<Listener<ColorHeader>> listeners) { }
     }
 }

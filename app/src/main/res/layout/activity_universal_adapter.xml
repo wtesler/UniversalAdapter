@@ -8,10 +8,18 @@
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin">
 
-    <android.support.v7.widget.RecyclerView
-        android:id="@+id/recyclerview_asymmetric"
+    <Button
+        android:id="@+id/button_odd"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:text="Clear odd sections."/>
 
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/recyclerview_universal"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/button_odd"
 
+        android:scrollbars="vertical"/>
 </RelativeLayout>

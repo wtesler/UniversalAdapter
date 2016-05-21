@@ -9,13 +9,13 @@ import android.view.ViewGroup;
 
 import java.util.List;
 
-public abstract class Binder<T> extends RecyclerView.ViewHolder {
+public abstract class Transformer<T> extends RecyclerView.ViewHolder {
 
-    protected Binder(@LayoutRes int layoutId, ViewGroup parent) {
+    protected Transformer(@LayoutRes int layoutId, ViewGroup parent) {
         super(LayoutInflater.from(parent.getContext()).inflate(layoutId, parent, false));
     }
 
-    public abstract void bind(T model, List<Listener<T>> listeners);
+    public abstract void transform(T model, List<Listener<T>> listeners);
 
     /**
      * Get the view that the model will be bound to.
@@ -31,7 +31,7 @@ public abstract class Binder<T> extends RecyclerView.ViewHolder {
      *
      * @return The context that the view lives in.
      */
-    public Context getContext() {
+    final protected Context getContext() {
         return itemView.getContext();
     }
 }

@@ -10,30 +10,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-public class UniversalAdapter extends RecyclerView.Adapter<Binder> {
+public class UniversalAdapter extends RecyclerView.Adapter<Transformer> {
 
     private Map<String, Section> mSections = new LinkedHashMap<>();
 
     /**
      * First class is the model, the second class is the transformer for that model.
      */
-    private Map<Class<?>, Class<? extends Binder>> mRegistrar = new LinkedHashMap<>();
+    private Map<Class<?>, Class<? extends Transformer>> mRegistrar = new LinkedHashMap<>();
 
     private Random mTagGenerator = new Random();
 
     @Override
-    public Binder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public Transformer onCreateViewHolder(ViewGroup parent, int viewType) {
         int i = 0;
-        for (Class<? extends Binder> transformer : mRegistrar.values()) {
+        for (Class<? extends Transformer> transformer : mRegistrar.values()) {
             if (viewType == i++) {
                 try {
-                    Constructor<? extends Binder> constructor =
+                    Constructor<? extends Transformer> constructor =
                             transformer.getDeclaredConstructor(ViewGroup.class);
                     return constructor.newInstance(parent);
                 } catch (Exception e) {
-                    throw new RuntimeException( "Your custom Binder must define a public constructor " +
-                            "Binder(ViewGroup parent) must at least call into it's super constructor. Also, " +
-                            "ensure that your Binder class is not an inner class. Here is the complete stacktrace:\n", e
+                    throw new RuntimeException( "Your custom Transformer must define a public constructor " +
+                            "Transformer(ViewGroup parent) must at least call into it's super constructor. Also, " +
+                            "ensure that your Transformer class is not an inner class. Here is the complete stacktrace:\n", e
                             .getCause());
                 }
             }
@@ -42,9 +42,9 @@ public class UniversalAdapter extends RecyclerView.Adapter<Binder> {
     }
 
     @Override
-    public void onBindViewHolder(Binder binder, int position) {
+    public void onBindViewHolder(Transformer transformer, int position) {
         Pair<Object, List<Listener>> itemWithListeners = getModel(position);
-        binder.bind(itemWithListeners.first, itemWithListeners.second);
+        transformer.transform(itemWithListeners.first, itemWithListeners.second);
     }
 
     @Override
@@ -69,7 +69,7 @@ public class UniversalAdapter extends RecyclerView.Adapter<Binder> {
         throw new ModelNotRegisteredException("View model: " + model.getClass() + " has not been registered");
     }
 
-    public <T> void register(Class<T> model, Class<? extends Binder<T>> transformer) {
+    public <T> void register(Class<T> model, Class<? extends Transformer<T>> transformer) {
         mRegistrar.put(model, transformer);
     }
 
