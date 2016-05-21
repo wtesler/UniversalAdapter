@@ -15,8 +15,6 @@ You can tag models and sections for easy retrieval. You can also get models by p
 
 If you want to add and remove many models at the same time, you simply create a 
 `Section` and call `add(section, tag)` or `remove(tag)` respectively.
-  
-Any class wishing to receive events from the list items can implement Listener.
 
 See an example [here](app/src/main/java/will/tesler/asymmetricadapter/UniversalAdapterActivity.java) of it's simple use in an Activity.
 
