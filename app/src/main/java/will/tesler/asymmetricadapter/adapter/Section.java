@@ -85,8 +85,13 @@ public class Section {
      * @param position The position of the item in the section.
      * @return The model at the given position in the section.
      */
+    @Nullable
     public Object getModel(int position) {
-        return mModels.get(position);
+        try {
+            return mModels.get(position);
+        } catch (IndexOutOfBoundsException exception) {
+            return null;
+        }
     }
 
     /**

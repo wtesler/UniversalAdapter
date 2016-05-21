@@ -148,7 +148,6 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
     public final <T> AddResult add(T model, Listener<T>... listeners) {
         Section section = new Section();
         section.add(model, listeners);
-        section.add(model, listeners);
         return add(section);
     }
 
