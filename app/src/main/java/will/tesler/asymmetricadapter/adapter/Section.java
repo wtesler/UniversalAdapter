@@ -4,10 +4,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-
-import will.tesler.asymmetricadapter.adapter.UniversalAdapter.Listener;
 
 /**
  * A Section groups models together and associates each model with it's listeners. A section is for use with the
@@ -17,7 +14,6 @@ import will.tesler.asymmetricadapter.adapter.UniversalAdapter.Listener;
 public class Section {
 
     private List<Object> mModels = new ArrayList<>();
-    private List<List<Listener>> mListeners = new ArrayList<>();
 
     private boolean mHasHeader;
 
@@ -30,12 +26,9 @@ public class Section {
      * Constructs a Section given a header.
      *
      * @param headerModel A header model.
-     * @param listeners A variable amount of listeners to attach to the header.
      */
-    @SafeVarargs
-    public <T> Section(@NonNull T headerModel, Listener<T>... listeners) {
+    public Section(@NonNull Object headerModel) {
         mModels.add(headerModel);
-        mListeners.add(Arrays.<Listener>asList(listeners));
         mHasHeader = true;
     }
 
@@ -43,26 +36,20 @@ public class Section {
      * Adds a model to the end of the section.
      *
      * @param model The model.
-     * @param listeners A variable amount of listeners to attach to the model.
      */
-    @SafeVarargs
-    public final <T> void add(T model, Listener<T>... listeners) {
+    public final void add(Object model) {
         mModels.add(model);
-        mListeners.add(Arrays.<Listener>asList(listeners));
     }
 
     /**
      * Adds a model to the section at the specified position. Does not take the header into account.
      *
-     * @param position The position where the model will be placed.
      * @param model The model.
-     * @param listeners A variable amount of listeners to attach to the item.
+     * @param position The position where the model will be placed.
      */
-    @SafeVarargs
-    public final <T> void add(int position, Object model, Listener<T>... listeners) {
+    public final void add(Object model, int position) {
         int absolutePosition = hasHeader() ? position + 1 : position;
         mModels.add(absolutePosition, model);
-        mListeners.add(absolutePosition, Arrays.<Listener>asList(listeners));
     }
 
     /**
@@ -74,8 +61,6 @@ public class Section {
         if (hasHeader() && position == 0) {
             mHasHeader = false;
         }
-
-        mListeners.remove(position);
         return mModels.remove(position);
     }
 
@@ -115,9 +100,6 @@ public class Section {
     public void setModels(List<Object> models) {
         clearModels();
         mModels.addAll(models);
-        for (int i = 0; i < models.size(); i++) {
-            mListeners.add(new ArrayList<Listener>());
-        }
     }
 
     /**
@@ -126,7 +108,6 @@ public class Section {
     public void clearModels() {
         if (hasHeader()) {
             mModels.subList(1, mModels.size()).clear();
-            mListeners.subList(1, mModels.size()).clear();
         } else {
             clearSection();
         }
@@ -138,16 +119,6 @@ public class Section {
     public void clearSection() {
         mModels.clear();
         mHasHeader = false;
-    }
-
-    /**
-     * The listeners attached to the item at the given position.
-     *
-     * @param position The position of the item in the section.
-     * @return The listeners at the given position in the section.
-     */
-    public List<Listener> getListeners(int position) {
-        return mListeners.get(position);
     }
 
     /**
@@ -164,14 +135,11 @@ public class Section {
      * Adds a header to the section.
      *
      * @param header A header item.
-     * @param listeners A variable amount of listeners to attach to the item.
      * @throws IllegalStateException thrown if a header already exists.
      */
-    @SafeVarargs
-    public final <T> void setHeader(T header, Listener<T>... listeners) {
+    public final <T> void setHeader(T header) {
         clearHeader();
         mModels.add(0, header);
-        mListeners.add(0, Arrays.<Listener>asList(listeners));
         mHasHeader = true;
     }
 
@@ -182,7 +150,6 @@ public class Section {
     public Object clearHeader() {
         if (hasHeader()) {
             mHasHeader = false;
-            mListeners.remove(0);
             return mModels.remove(0);
         }
         return null;

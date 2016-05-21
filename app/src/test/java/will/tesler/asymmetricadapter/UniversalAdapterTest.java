@@ -1,19 +1,14 @@
 package will.tesler.asymmetricadapter;
 
-import android.support.v7.widget.RecyclerView;
-import android.view.ViewGroup;
-
-
 import android.content.Context;
 import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.view.ViewGroup;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.annotation.Config;
-
-import java.util.List;
 
 import will.tesler.asymmetricadapter.adapter.Section;
 import will.tesler.asymmetricadapter.adapter.UniversalAdapter;
@@ -129,7 +124,7 @@ public class UniversalAdapterTest {
         mAdapter.add(new Model1());
         mAdapter.add(new Model2());
 
-        assertThat(mAdapter.get(2).model).isInstanceOf(Model2.class);
+        assertThat(mAdapter.get(2)).isInstanceOf(Model2.class);
     }
 
     @Test
@@ -147,7 +142,7 @@ public class UniversalAdapterTest {
         section2.add(new Model1());
         mAdapter.add(section2);
 
-        assertThat(mAdapter.get(3).model).isInstanceOf(Model2.class);
+        assertThat(mAdapter.get(3)).isInstanceOf(Model2.class);
     }
 
     @Test
@@ -169,18 +164,6 @@ public class UniversalAdapterTest {
     }
 
     @Test
-    public void add_withListeners_shouldAddListeners() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
-        mAdapter.register(Model2.class, TestTransformer2.class);
-
-        mAdapter.add(new Model1(), new TestListener());
-        mAdapter.add(new Model2(), new TestListener(), new TestListener());
-        mAdapter.add(new Model1(), new TestListener());
-
-        assertThat(mAdapter.get(1).listeners.size()).isEqualTo(2);
-    }
-
-    @Test
     public void bindView_shouldPassModelToTransformer() {
         mAdapter.register(Model1.class, TestTransformer1.class);
 
@@ -191,21 +174,6 @@ public class UniversalAdapterTest {
         mAdapter.bindViewHolder(transformer, 0);
 
         assertThat(transformer.mModel).isEqualTo(model);
-    }
-
-    @Test
-    public void bindView_shouldPassListenersToTransformer() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
-
-        TestListener listener1 = new TestListener();
-        TestListener listener2 = new TestListener();
-        mAdapter.add(new Model1(), listener1, listener2);
-
-        TestTransformer1 transformer = (TestTransformer1) mAdapter.createViewHolder(mRecyclerView, 0);
-        mAdapter.bindViewHolder(transformer, 0);
-
-        assertThat(transformer.mListeners.get(0)).isEqualTo(listener1);
-        assertThat(transformer.mListeners.get(1)).isEqualTo(listener2);
     }
 
     @Test
@@ -247,38 +215,33 @@ public class UniversalAdapterTest {
         assertThat(model).isNull();
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
-    public void get_whenAdapterPositionExceeded_throwsIndexOutOfBoundsException() {
-        mAdapter.get(0);
+    public void get_whenAdapterPositionExceeded_returnsNull() {
+        Object model = mAdapter.get(0);
+        assertThat(model).isNull();
     }
 
-    @Test(expected = RuntimeException.class)
-    public void remove_whenSectionTagDoesntExist_throwsRuntimeException() {
-        mAdapter.remove("TAG");
+    public void remove_whenSectionTagDoesntExist_returnsNull() {
+        Section section = mAdapter.remove("TAG");
+        assertThat(section).isNull();
     }
 
-    class Model1 {
-    }
+    class Model1 { }
 
-    class Model2 {
-    }
+    class Model2 { }
 
-    class Header {
-    }
+    class Header { }
 
     public static class TestTransformer1 extends UniversalAdapter.Transformer<Model1> {
 
         public Object mModel;
-        public List<UniversalAdapter.Listener<Model1>> mListeners;
 
         public TestTransformer1(ViewGroup parent) {
             super(R.layout.layout_a, parent);
         }
 
         @Override
-        public void transform(Model1 model, List<UniversalAdapter.Listener<Model1>> listeners) {
+        public void transform(Model1 model) {
             mModel = model;
-            mListeners = listeners;
         }
     }
 
@@ -289,8 +252,7 @@ public class UniversalAdapterTest {
         }
 
         @Override
-        public void transform(Model2 model, List<UniversalAdapter.Listener<Model2>> listeners) {
-        }
+        public void transform(Model2 model) { }
     }
 
     public static class TestHeaderTransformer extends UniversalAdapter.Transformer<Header> {
@@ -300,14 +262,6 @@ public class UniversalAdapterTest {
         }
 
         @Override
-        public void transform(Header header, List<UniversalAdapter.Listener<Header>> listeners) {
-        }
-    }
-
-    public class TestListener implements UniversalAdapter.Listener {
-        @Override
-        public void onEvent(Object model, String event) {
-            // Mock
-        }
+        public void transform(Header header) { }
     }
 }

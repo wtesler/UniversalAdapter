@@ -11,7 +11,6 @@ import android.view.ViewGroup;
 
 import java.lang.reflect.Constructor;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,7 +24,7 @@ import java.util.UUID;
  * <br/>
  * Have a model {@code Object} you want to represent in the adapter.
  * Construct a UniversalAdapter and assign it to your RecyclerView.
- * Create a {@link will.tesler.asymmetricadapter.adapter.Transformer} which binds the model to a View.
+ * Create a {@link Transformer} which binds the model to a View.
  * Register the transformer with the adapter.
  * The adapter has a number of add operations such as {@code add(model)} or {@code add(section)}. The RecyclerView will
  * automatically be notified of changes to the dataset.
@@ -34,9 +33,6 @@ import java.util.UUID;
  * <br/><br/>
  * If you want to add and remove many models at the same time, you simply create a {@link Section} and call add(section,
  * tag) or remove(tag) respectively.
- * <br/><br/>
- * Any class wishing to receive events from the views can implement a
- * {@link will.tesler.asymmetricadapter.adapter.UniversalAdapter.Listener}.
  */
 public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Transformer> {
 
@@ -53,21 +49,21 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
     private Map<Class<?>, Class<? extends Transformer>> mRegistrar = new LinkedHashMap<>();
 
     /**
-     * Transform a model and listeners into a view. No need to check for raw type inference because it is implied
+     * Transform a model into a view. No need to check for raw type inference because it is implied
      * by the registrar's structure.
      *
      * @param transformer The transformer.
-     * @param position The position of the corresponding model/listeners pair.
+     * @param position The position of the corresponding model.
      */
     @SuppressWarnings("unchecked")
     @Override
     public void onBindViewHolder(Transformer transformer, int position) {
-        ModelListenerPair itemListenerPair = getModel(position);
-        transformer.transform(itemListenerPair.model, itemListenerPair.listeners);
+        Object model = getModel(position);
+        transformer.transform(model);
     }
 
     /**
-     * Create a {@link will.tesler.asymmetricadapter.adapter.Transformer} for a given view type.
+     * Create a {@link Transformer} for a given view type.
      * the view type corresponds to the position of the transformer's class in the registrar. The transformer's class
      * is expected to have a public constructor {@code Transformer(Viewgroup parent)}. Reflection is an important
      * and necessary step in this method as it is the main way that providers are avoided in this adapter. Ensure
@@ -113,7 +109,7 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
      */
     @Override
     public int getItemViewType(int position) {
-        Object model = getModel(position).model;
+        Object model = getModel(position);
         int i = 0;
         for (Class<?> modelClass : mRegistrar.keySet()) {
             if (modelClass == model.getClass()) {
@@ -139,15 +135,12 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
      * Adds a new model to the adapter. The model will be wrapped in a new {@link Section} before being added.
      *
      * @param model The model to add.
-     * @param listeners A variable amount of listeners to associate with the model.
-     * @param <T> The model class.
      * @return An AddResult containing a tag which can be used to modify the section later.
      */
-    @SafeVarargs
     @NonNull
-    public final <T> AddResult add(T model, Listener<T>... listeners) {
+    public final <T> AddResult add(Object model) {
         Section section = new Section();
-        section.add(model, listeners);
+        section.add(model);
         return add(section);
     }
 
@@ -156,16 +149,13 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
      *
      * @param model The model to add.
      * @param tag The unique tag for the section.
-     * @param listeners A variable amount of listeners to associate with the model.
-     * @param <T> The model class.
      *
      * @return An AddResult which contains whether the add operation caused a section to be replaced.
      */
-    @SafeVarargs
     @NonNull
-    public final <T> AddResult add(T model, String tag, Listener<T>... listeners) {
+    public final AddResult add(Object model, String tag) {
         Section section = new Section();
-        section.add(model, listeners);
+        section.add(model);
         return add(section, tag);
     }
 
@@ -225,32 +215,33 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
     }
 
     /**
-     * Get the model and listeners for a particular adapter position. Can be useful when used with
+     * Get the model for a particular adapter position. Can be useful when used with
      * {@link android.support.v7.widget.RecyclerView.LayoutManager} methods.
      *
      * @param adapterPosition The adapter position.
-     * @return The model and listeners associated with a particular adapter position.
+     * @return The model associated with a particular adapter position.
      */
-    public ModelListenerPair get(int adapterPosition) {
+    @Nullable
+    public Object get(int adapterPosition) {
         int sectionEnd = 0;
         for (Section section : mSections.values()) {
             int sectionStart = sectionEnd;
             sectionEnd += section.totalSize();
             if (adapterPosition < sectionEnd) {
                 int sectionPosition = adapterPosition - sectionStart;
-                return new ModelListenerPair(section.getModel(sectionPosition), section.getListeners(sectionPosition));
+                return section.getModel(sectionPosition);
             }
         }
-        throw new IndexOutOfBoundsException(Integer.toString(adapterPosition));
+        return null;
     }
 
     /**
-     * Removes a section from the adapter given it's tag.
+     * Removes a section from the adapter by tag.
      *
      * @param tag The tag for the section.
-     * @return The removed section.
+     * @return The removed section or {@code null} if the section wasn't found.
      */
-    @NonNull
+    @Nullable
     public Section remove(String tag) {
         int count = 0;
         for (String sectionTag : mSections.keySet()) {
@@ -261,16 +252,17 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
             }
             count += mSections.get(sectionTag).totalSize();
         }
-        throw new RuntimeException("Section with tag " + tag + " was not found.");
+        return null;
     }
 
     /**
-     * Removes the model and listeners for a particular adapter position. Can be useful when used with
+     * Removes the model for a particular adapter position. Can be useful when used with
      * {@link android.support.v7.widget.RecyclerView.LayoutManager} methods.
      *
      * @param adapterPosition The adapter position.
      * @return The model associated with a particular adapter position.
      */
+    @Nullable
     public Object remove(int adapterPosition) {
         int sectionEnd = 0;
         for (Section section : mSections.values()) {
@@ -281,11 +273,11 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
                 return section.remove(sectionPosition);
             }
         }
-        throw new IndexOutOfBoundsException(Integer.toString(adapterPosition));
+        return null;
     }
 
     /**
-     * Verify that every model in the section has been registered with the adapter.
+     * Verify that every model in a section has been registered with the adapter.
      *
      * @param section The section.
      * @throws IllegalStateException If a model in the section has not been registered.
@@ -300,23 +292,23 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
     }
 
     /**
-     * Gets the model and listeners at an adapter position.
+     * Gets the model at an adapter position.
      *
      * @param adapterPosition The position.
-     * @return The model as well as any associated listeners.
+     * @return The model.
      */
-    @NonNull
-    private ModelListenerPair getModel(int adapterPosition) {
+    @Nullable
+    private Object getModel(int adapterPosition) {
         int sectionEnd = 0;
         for (Section section : mSections.values()) {
             int sectionStart = sectionEnd;
             sectionEnd += section.totalSize();
             if (adapterPosition < sectionEnd) {
                 int itemPosition = adapterPosition - sectionStart;
-                return new ModelListenerPair(section.getModel(itemPosition), section.getListeners(itemPosition));
+                return section.getModel(itemPosition);
             }
         }
-        throw new IndexOutOfBoundsException(Integer.toString(adapterPosition));
+        return null;
     }
 
     /**
@@ -366,19 +358,6 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
     }
 
     /**
-     * A immutable pair containing a model and a list of associated listeners.
-     */
-    public class ModelListenerPair {
-        @NonNull public final Object model;
-        @NonNull public final List<Listener> listeners;
-
-        ModelListenerPair(@NonNull Object model, @NonNull List<Listener> listener) {
-            this.model = model;
-            this.listeners = listener;
-        }
-    }
-
-    /**
      * This class alters a view given a model. Every new model which is added to the adapter must first
      * register a Transformer for that model with the adapter's {@code register} method.
      *
@@ -396,12 +375,11 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
         }
 
         /**
-         * Alter the behavior and appearance of the view given the model and a list of listeners.
+         * Alter the behavior and appearance of the view given the model.
          *
          * @param model The model which will be used to alter the view.
-         * @param listeners A list of listeners to attach to the view.
          */
-        protected abstract void transform(T model, List<Listener<T>> listeners);
+        protected abstract void transform(T model);
 
         /**
          * Get the view that the model will be bound to.
@@ -422,21 +400,5 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
         final protected Context getContext() {
             return itemView.getContext();
         }
-    }
-
-    /**
-     * A listener for events emitted by views in the adapter.
-     *
-     * @param <T> The model class associated with the view.
-     */
-    public interface Listener<T> {
-
-        /**
-         * A callback for events emitted by views in the adapter.
-         *
-         * @param model The model associated with the view.
-         * @param event The event which is triggering the listener.
-         */
-        void onEvent(T model, String event);
     }
 }
