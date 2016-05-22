@@ -138,7 +138,7 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
      * @return An AddResult containing a tag which can be used to modify the section later.
      */
     @NonNull
-    public final <T> AddResult add(Object model) {
+    public final AddResult add(Object model) {
         Section section = new Section();
         section.add(model);
         return add(section);
