@@ -1,19 +1,20 @@
 package will.tesler.asymmetricadapter.adapter;
 
-import android.content.Context;
-import android.support.annotation.LayoutRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
+import android.util.Pair;
 import android.view.ViewGroup;
 
 import java.lang.reflect.Constructor;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+
+import io.reactivex.Observable;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 
 /**
  * The UniversalAdapter is a composable non-abstract {@code RecyclerAdapter} which can be used as-is without needing to
@@ -25,7 +26,7 @@ import java.util.UUID;
  * <br/>
  * Have a model {@code Object} you want to represent in the adapter.
  * Construct a UniversalAdapter and assign it to your RecyclerView.
- * Create a {@link Transformer} which binds the model to a View.
+ * Create a {@link Presenter} which binds the model to a View.
  * Register the transformer with the adapter.
  * The adapter has a number of add operations such as {@code add(model)} or {@code add(section)}. The RecyclerView will
  * automatically be notified of changes to the dataset.
@@ -35,7 +36,7 @@ import java.util.UUID;
  * If you want to add and remove many models at the same time, you simply create a {@link Section} and call add(section,
  * tag) or remove(tag) respectively.
  */
-public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Transformer> {
+public class UniversalAdapter extends RecyclerView.Adapter<Presenter> {
 
     /**
      * Maps tags to corresponding sections. Insertion order is maintained because the sections must be iterable in
@@ -47,43 +48,48 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
      * Maps model classes to corresponding transformer classes. Insertion order is maintained in order to determine
      * view types.
      */
-    private Map<Class<?>, Class<? extends Transformer>> mRegistrar = new LinkedHashMap<>();
+    private Map<Class<?>, Class<? extends Presenter>> mRegistrar = new LinkedHashMap<>();
+
+    /**
+     * Use this to relay emissions out of {@link Presenter presenters}.
+     */
+    private UniversalRelay mUniversalRelay = new UniversalRelay();
 
     /**
      * Transform a model into a view. No need to check for raw type inference because it is implied
      * by the registrar's structure.
      *
-     * @param transformer The transformer.
+     * @param presenter The presenter.
      * @param position The position of the corresponding model.
      */
     @SuppressWarnings("unchecked")
     @Override
-    public void onBindViewHolder(Transformer transformer, int position) {
+    public void onBindViewHolder(Presenter presenter, int position) {
         Object model = getModel(position);
-        transformer.transform(model);
+        presenter.present(model, mUniversalRelay);
     }
 
     /**
-     * Create a {@link Transformer} for a given view type.
+     * Create a {@link Presenter} for a given view type.
      * the view type corresponds to the position of the transformer's class in the registrar. The transformer's class
-     * is expected to have a public constructor {@code Transformer(Viewgroup parent)}. Reflection is an important
+     * is expected to have a public constructor {@code Presenter(Viewgroup parent)}. Reflection is an important
      * and necessary step in this method as it is the main way that providers are avoided in this adapter. Ensure
      * that proguard does not alter the constructor.
      */
     @Nullable
     @Override
-    public Transformer onCreateViewHolder(ViewGroup parent, int viewType) {
+    public Presenter onCreateViewHolder(ViewGroup parent, int viewType) {
         int i = 0;
-        for (Class<? extends Transformer> transformer : mRegistrar.values()) {
+        for (Class<? extends Presenter> transformer : mRegistrar.values()) {
             if (viewType == i++) {
                 try {
-                    Constructor<? extends Transformer> constructor =
+                    Constructor<? extends Presenter> constructor =
                             transformer.getDeclaredConstructor(ViewGroup.class);
                     return constructor.newInstance(parent);
                 } catch (Exception e) {
-                    Log.e(getClass().getName(), "Ensure that " + transformer.getSimpleName()
+                    Log.e(getClass().getName(), e.getCause() + ". Ensure that " + transformer.getSimpleName()
                             + " defines a public constructor " + transformer.getSimpleName() + "(ViewGroup parent)."
-                            + " Also, ensure that your Transformer class is not an inner class.", e);
+                            + " Also, ensure that your Presenter class is not an inner class.", e);
                 }
             }
         }
@@ -122,12 +128,12 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
 
     /**
      * Registers a model class with a transformer for that model class. This tells the adapter that a given model can
-     * be used to transform a view as defined in the transformer.
+     * be used to present a view as defined in the transformer.
      * @param modelClass The model class definition.
      * @param transformerClass The transformer class for the model.
      * @param <T> The model class.
      */
-    public <T> void register(Class<T> modelClass, Class<? extends Transformer<T>> transformerClass) {
+    public <T> void register(Class<T> modelClass, Class<? extends Presenter<T>> transformerClass) {
         mRegistrar.put(modelClass, transformerClass);
     }
 
@@ -276,6 +282,22 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
         return null;
     }
 
+    @NonNull
+    public <T> Observable<T> getObservable(final Class<T> modelClass, final String action) {
+        return mUniversalRelay.filter(new Predicate<Pair<Object, String>>() {
+            @Override
+            public boolean test(Pair<Object, String> emission) throws Exception {
+                return emission.first.getClass().equals(modelClass)
+                        && emission.second.equals(action);
+            }
+        }).map(new Function<Pair<Object, String>, T>() {
+            @Override
+            public T apply(Pair<Object, String> objectStringPair) throws Exception {
+                return (T) objectStringPair.first;
+            }
+        });
+    }
+
     /**
      * Verify that every model in a section has been registered with the adapter.
      *
@@ -354,51 +376,6 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
         @Override
         public int hashCode() {
             return mTag.hashCode();
-        }
-    }
-
-    /**
-     * This class alters a view given a model. Every new model which is added to the adapter must first
-     * register a Transformer for that model with the adapter's {@code register} method.
-     *
-     * <br/><br/><b>Every class that extends
-     * this Transformer must define a public constructor {@code Transformer(ViewGroup parent)} which must at
-     * least call into the base constructor and supply a layout resource. This is also a good place to bind to views.
-     * </b>
-     *
-     * @param <T> The model which this Transformer will use to alter a view.
-     */
-    public static abstract class Transformer<T> extends RecyclerView.ViewHolder {
-
-        protected Transformer(@LayoutRes int layoutRes, ViewGroup parent) {
-            super(LayoutInflater.from(parent.getContext()).inflate(layoutRes, parent, false));
-        }
-
-        /**
-         * Alter the behavior and appearance of the view given the model.
-         *
-         * @param model The model which will be used to alter the view.
-         */
-        protected abstract void transform(T model);
-
-        /**
-         * Get the view that the model will be bound to.
-         *
-         * @return The view that the model will be bound to.
-         */
-        @NonNull
-        final protected View getView() {
-            return itemView;
-        }
-
-        /**
-         * Get the context that the view lives in.
-         *
-         * @return The context that the view lives in.
-         */
-        @NonNull
-        final protected Context getContext() {
-            return itemView.getContext();
         }
     }
 }

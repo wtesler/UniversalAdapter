@@ -1,6 +1,7 @@
 package will.tesler.asymmetricadapter;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.ViewGroup;
@@ -10,8 +11,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RuntimeEnvironment;
 
+import will.tesler.asymmetricadapter.adapter.Presenter;
 import will.tesler.asymmetricadapter.adapter.Section;
 import will.tesler.asymmetricadapter.adapter.UniversalAdapter;
+import will.tesler.asymmetricadapter.adapter.UniversalRelay;
 import will.tesler.asymmetricadapter.robolectric.RobolectricGradleTestRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,10 +40,10 @@ public class UniversalAdapterTest {
 
     @Test
     public void register_assignsAnOrdinalViewtypeToTransformerClass() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
         mAdapter.add(new Model1());
 
-        mAdapter.register(Model2.class, TestTransformer2.class);
+        mAdapter.register(Model2.class, TestPresenter2.class);
         mAdapter.add(new Model2());
 
         assertThat(mAdapter.getItemViewType(0)).isEqualTo(0);
@@ -49,7 +52,7 @@ public class UniversalAdapterTest {
 
     @Test
     public void getItemViewCount_returnsTheProperCount() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
 
         mAdapter.add(new Model1());
         mAdapter.add(new Model1());
@@ -60,8 +63,8 @@ public class UniversalAdapterTest {
 
     @Test
     public void getItemViewCount_whenUsingSections_returnsTheTotalCount() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
-        mAdapter.register(Header.class, TestHeaderTransformer.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(Header.class, TestHeaderPresenter.class);
 
         Section section = new Section(new Header());
         section.add(new Model1());
@@ -75,14 +78,14 @@ public class UniversalAdapterTest {
 
     @Test
     public void add_withTag_ReturnsAddStatusWithSameTag() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
         UniversalAdapter.AddResult addResult = mAdapter.add(new Model1(), "TAG");
         assertThat(addResult.getTag().equals("TAG"));
     }
 
     @Test
     public void add_withTag_AllowsRemovalOfSectionByTag() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
 
         Model1 model1 = new Model1();
         mAdapter.add(model1, "TAG");
@@ -94,31 +97,31 @@ public class UniversalAdapterTest {
 
     @Test
     public void createViewHolder_whenRegistered_constructsCorrectTransformer() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
 
         mAdapter.add(new Model1());
 
-        UniversalAdapter.Transformer transformer = mAdapter.createViewHolder(mRecyclerView, 0);
+        Presenter presenter = mAdapter.createViewHolder(mRecyclerView, 0);
 
-        assertThat(transformer).isInstanceOf(TestTransformer1.class);
+        assertThat(presenter).isInstanceOf(TestPresenter1.class);
     }
 
     @Test
     public void createViewHolder_whenMultipleRegistrations_constructsCorrectTransformer() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
-        mAdapter.register(Model2.class, TestTransformer2.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(Model2.class, TestPresenter2.class);
 
-        UniversalAdapter.Transformer transformer1 = mAdapter.createViewHolder(mRecyclerView, 0);
-        UniversalAdapter.Transformer transformer2 = mAdapter.createViewHolder(mRecyclerView, 1);
+        Presenter presenter1 = mAdapter.createViewHolder(mRecyclerView, 0);
+        Presenter presenter2 = mAdapter.createViewHolder(mRecyclerView, 1);
 
-        assertThat(transformer1).isInstanceOf(TestTransformer1.class);
-        assertThat(transformer2).isInstanceOf(TestTransformer2.class);
+        assertThat(presenter1).isInstanceOf(TestPresenter1.class);
+        assertThat(presenter2).isInstanceOf(TestPresenter2.class);
     }
 
     @Test
     public void get_withAdapterPosition_shouldGetTheCorrectModel() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
-        mAdapter.register(Model2.class, TestTransformer2.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(Model2.class, TestPresenter2.class);
 
         mAdapter.add(new Model1());
         mAdapter.add(new Model1());
@@ -129,8 +132,8 @@ public class UniversalAdapterTest {
 
     @Test
     public void get_withAdapterPosition_shouldGetTheCorrectModelFromASection() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
-        mAdapter.register(Model2.class, TestTransformer2.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(Model2.class, TestPresenter2.class);
 
         Section section1 = new Section(new Model1());
         mAdapter.add(section1);
@@ -147,8 +150,8 @@ public class UniversalAdapterTest {
 
     @Test
     public void removeWithAdapterPosition_removesTheCorrectModelFromASection() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
-        mAdapter.register(Model2.class, TestTransformer2.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(Model2.class, TestPresenter2.class);
 
         Section section1 = new Section(new Model1());
         mAdapter.add(section1);
@@ -165,12 +168,12 @@ public class UniversalAdapterTest {
 
     @Test
     public void bindView_shouldPassModelToTransformer() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
 
         Model1 model = new Model1();
         mAdapter.add(model);
 
-        TestTransformer1 transformer = (TestTransformer1) mAdapter.createViewHolder(mRecyclerView, 0);
+        TestPresenter1 transformer = (TestPresenter1) mAdapter.createViewHolder(mRecyclerView, 0);
         mAdapter.bindViewHolder(transformer, 0);
 
         assertThat(transformer.mModel).isEqualTo(model);
@@ -178,7 +181,7 @@ public class UniversalAdapterTest {
 
     @Test
     public void clearSection_whenNotifyDataSetChanged_shouldClearSectionInAdapter() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
 
         Section section = new Section();
         section.add(new Model1());
@@ -201,13 +204,13 @@ public class UniversalAdapterTest {
 
     @Test(expected = RuntimeException.class)
     public void createViewHolder_whenNotRegistered_throwsRuntimeException() {
-        UniversalAdapter.Transformer transformer = mAdapter.createViewHolder(mRecyclerView, 0);
+        Presenter presenter = mAdapter.createViewHolder(mRecyclerView, 0);
 
-        assertThat(transformer).isInstanceOf(TestTransformer1.class);
+        assertThat(presenter).isInstanceOf(TestPresenter1.class);
     }
 
     public void get_whenSectionIndexIsExceeded_throwsIndexOutOfBoundsException() {
-        mAdapter.register(Model1.class, TestTransformer1.class);
+        mAdapter.register(Model1.class, TestPresenter1.class);
 
         mAdapter.add(new Model1(), "TAG");
 
@@ -231,37 +234,37 @@ public class UniversalAdapterTest {
 
     class Header { }
 
-    public static class TestTransformer1 extends UniversalAdapter.Transformer<Model1> {
+    public static class TestPresenter1 extends Presenter<Model1> {
 
         public Object mModel;
 
-        public TestTransformer1(ViewGroup parent) {
+        public TestPresenter1(ViewGroup parent) {
             super(R.layout.layout_a, parent);
         }
 
         @Override
-        public void transform(Model1 model) {
+        public void present(Model1 model, @NonNull UniversalRelay relay) {
             mModel = model;
         }
     }
 
-    public static class TestTransformer2 extends UniversalAdapter.Transformer<Model2> {
+    public static class TestPresenter2 extends Presenter<Model2> {
 
-        public TestTransformer2(ViewGroup parent) {
+        public TestPresenter2(ViewGroup parent) {
             super(R.layout.layout_b, parent);
         }
 
         @Override
-        public void transform(Model2 model) { }
+        public void present(Model2 model, @NonNull UniversalRelay relay) { }
     }
 
-    public static class TestHeaderTransformer extends UniversalAdapter.Transformer<Header> {
+    public static class TestHeaderPresenter extends Presenter<Header> {
 
-        public TestHeaderTransformer(ViewGroup parent) {
+        public TestHeaderPresenter(ViewGroup parent) {
             super(R.layout.layout_header, parent);
         }
 
         @Override
-        public void transform(Header header) { }
+        public void present(Header header, @NonNull UniversalRelay relay) { }
     }
 }
