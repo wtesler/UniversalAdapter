@@ -18,6 +18,4 @@ If you want to add and remove many models at the same time, you simply create a
 
 Every Presenter has access to a relay which they can use to emit events out of the presenter. Observers can call `#getObservable(class, action)` to observe events of the given class filtered by the action type.
 
-See an example [here](app/src/main/java/will/tesler/asymmetricadapter/UniversalAdapterActivity.java) of it's simple use in an Activity.
-
 -Will Tesler
