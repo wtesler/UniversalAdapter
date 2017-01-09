@@ -5,6 +5,7 @@ import android.support.annotation.LayoutRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -80,10 +81,9 @@ public class UniversalAdapter extends RecyclerView.Adapter<UniversalAdapter.Tran
                             transformer.getDeclaredConstructor(ViewGroup.class);
                     return constructor.newInstance(parent);
                 } catch (Exception e) {
-                    throw new RuntimeException("Ensure that " + transformer.getSimpleName() +
-                            " defines a public constructor " + transformer.getSimpleName() + "(ViewGroup parent)." +
-                            " Also, ensure that your Transformer class is not an inner class." +
-                            " See the complete error below.", e);
+                    Log.e(getClass().getName(), "Ensure that " + transformer.getSimpleName()
+                            + " defines a public constructor " + transformer.getSimpleName() + "(ViewGroup parent)."
+                            + " Also, ensure that your Transformer class is not an inner class.", e);
                 }
             }
         }

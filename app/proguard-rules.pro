@@ -15,3 +15,8 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+# Universal Adapter
+-keepclassmembers class * extends will.tesler.asymmetricadapter.adapter.Presenter{
+    public <init>(android.view.ViewGroup);
+}
