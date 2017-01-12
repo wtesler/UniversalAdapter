@@ -84,6 +84,7 @@ public class Section {
      *
      * @return All the items in the section excluding the header.
      */
+    @NonNull
     public List<Object> getModels() {
         if (hasHeader()) {
             return mModels.subList(1, mModels.size());

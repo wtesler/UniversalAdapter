@@ -11,6 +11,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RuntimeEnvironment;
 
+import will.tesler.asymmetricadapter.adapter.AddResult;
 import will.tesler.asymmetricadapter.adapter.Presenter;
 import will.tesler.asymmetricadapter.adapter.Section;
 import will.tesler.asymmetricadapter.adapter.UniversalAdapter;
@@ -40,10 +41,10 @@ public class UniversalAdapterTest {
 
     @Test
     public void register_assignsAnOrdinalViewtypeToTransformerClass() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(TestPresenter1.class);
         mAdapter.add(new Model1());
 
-        mAdapter.register(Model2.class, TestPresenter2.class);
+        mAdapter.register(TestPresenter2.class);
         mAdapter.add(new Model2());
 
         assertThat(mAdapter.getItemViewType(0)).isEqualTo(0);
@@ -52,7 +53,7 @@ public class UniversalAdapterTest {
 
     @Test
     public void getItemViewCount_returnsTheProperCount() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(TestPresenter1.class);
 
         mAdapter.add(new Model1());
         mAdapter.add(new Model1());
@@ -63,8 +64,8 @@ public class UniversalAdapterTest {
 
     @Test
     public void getItemViewCount_whenUsingSections_returnsTheTotalCount() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
-        mAdapter.register(Header.class, TestHeaderPresenter.class);
+        mAdapter.register(TestPresenter1.class);
+        mAdapter.register(TestHeaderPresenter.class);
 
         Section section = new Section(new Header());
         section.add(new Model1());
@@ -78,18 +79,19 @@ public class UniversalAdapterTest {
 
     @Test
     public void add_withTag_ReturnsAddStatusWithSameTag() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
-        UniversalAdapter.AddResult addResult = mAdapter.add(new Model1(), "TAG");
+        mAdapter.register(TestPresenter1.class);
+        AddResult addResult = mAdapter.add(new Model1(), "TAG");
         assertThat(addResult.getTag().equals("TAG"));
     }
 
     @Test
     public void add_withTag_AllowsRemovalOfSectionByTag() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(TestPresenter1.class);
 
         Model1 model1 = new Model1();
         mAdapter.add(model1, "TAG");
 
+        @SuppressWarnings("ConstantConditions")
         Model1 retrievedModel1 = (Model1) mAdapter.get("TAG").getModel(0);
 
         assertThat(retrievedModel1).isEqualTo(model1);
@@ -97,7 +99,7 @@ public class UniversalAdapterTest {
 
     @Test
     public void createViewHolder_whenRegistered_constructsCorrectTransformer() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(TestPresenter1.class);
 
         mAdapter.add(new Model1());
 
@@ -108,8 +110,8 @@ public class UniversalAdapterTest {
 
     @Test
     public void createViewHolder_whenMultipleRegistrations_constructsCorrectTransformer() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
-        mAdapter.register(Model2.class, TestPresenter2.class);
+        mAdapter.register(TestPresenter1.class);
+        mAdapter.register(TestPresenter2.class);
 
         Presenter presenter1 = mAdapter.createViewHolder(mRecyclerView, 0);
         Presenter presenter2 = mAdapter.createViewHolder(mRecyclerView, 1);
@@ -120,8 +122,8 @@ public class UniversalAdapterTest {
 
     @Test
     public void get_withAdapterPosition_shouldGetTheCorrectModel() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
-        mAdapter.register(Model2.class, TestPresenter2.class);
+        mAdapter.register(TestPresenter1.class);
+        mAdapter.register(TestPresenter2.class);
 
         mAdapter.add(new Model1());
         mAdapter.add(new Model1());
@@ -132,8 +134,8 @@ public class UniversalAdapterTest {
 
     @Test
     public void get_withAdapterPosition_shouldGetTheCorrectModelFromASection() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
-        mAdapter.register(Model2.class, TestPresenter2.class);
+        mAdapter.register(TestPresenter1.class);
+        mAdapter.register(TestPresenter2.class);
 
         Section section1 = new Section(new Model1());
         mAdapter.add(section1);
@@ -150,8 +152,8 @@ public class UniversalAdapterTest {
 
     @Test
     public void removeWithAdapterPosition_removesTheCorrectModelFromASection() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
-        mAdapter.register(Model2.class, TestPresenter2.class);
+        mAdapter.register(TestPresenter1.class);
+        mAdapter.register(TestPresenter2.class);
 
         Section section1 = new Section(new Model1());
         mAdapter.add(section1);
@@ -168,7 +170,7 @@ public class UniversalAdapterTest {
 
     @Test
     public void bindView_shouldPassModelToTransformer() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(TestPresenter1.class);
 
         Model1 model = new Model1();
         mAdapter.add(model);
@@ -181,7 +183,7 @@ public class UniversalAdapterTest {
 
     @Test
     public void clearSection_whenNotifyDataSetChanged_shouldClearSectionInAdapter() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(TestPresenter1.class);
 
         Section section = new Section();
         section.add(new Model1());
@@ -210,10 +212,11 @@ public class UniversalAdapterTest {
     }
 
     public void get_whenSectionIndexIsExceeded_throwsIndexOutOfBoundsException() {
-        mAdapter.register(Model1.class, TestPresenter1.class);
+        mAdapter.register(TestPresenter1.class);
 
         mAdapter.add(new Model1(), "TAG");
 
+        @SuppressWarnings("ConstantConditions")
         Object model = mAdapter.get("TAG").getModel(1);
         assertThat(model).isNull();
     }

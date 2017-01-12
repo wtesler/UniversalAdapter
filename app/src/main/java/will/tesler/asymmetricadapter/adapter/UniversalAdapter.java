@@ -8,6 +8,7 @@ import android.util.Pair;
 import android.view.ViewGroup;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.ParameterizedType;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -127,14 +128,15 @@ public class UniversalAdapter extends RecyclerView.Adapter<Presenter> {
     }
 
     /**
-     * Registers a model class with a transformer for that model class. This tells the adapter that a given model can
-     * be used to present a view as defined in the transformer.
-     * @param modelClass The model class definition.
-     * @param transformerClass The transformer class for the model.
-     * @param <T> The model class.
+     * Registers a presenter for a model. This tells the adapter that a given model could
+     * be represented as a view using this presenter class.
+     *
+     * @param presenterClass The presenter class to register.
      */
-    public <T> void register(Class<T> modelClass, Class<? extends Presenter<T>> transformerClass) {
-        mRegistrar.put(modelClass, transformerClass);
+    public void register(Class<? extends Presenter> presenterClass) {
+        Class modelClass =
+                (Class) ((ParameterizedType) presenterClass.getGenericSuperclass()).getActualTypeArguments()[0];
+        mRegistrar.put(modelClass, presenterClass);
     }
 
     /**
@@ -319,7 +321,6 @@ public class UniversalAdapter extends RecyclerView.Adapter<Presenter> {
      * @param adapterPosition The position.
      * @return The model.
      */
-    @Nullable
     private Object getModel(int adapterPosition) {
         int sectionEnd = 0;
         for (Section section : mSections.values()) {
@@ -330,52 +331,6 @@ public class UniversalAdapter extends RecyclerView.Adapter<Presenter> {
                 return section.getModel(itemPosition);
             }
         }
-        return null;
-    }
-
-    /**
-     * An AddResult is an immutable class returned by every add operation in the adapter. It contains a unique tag
-     * for the added section, as well as a boolean to determine whether the section was replaced by the add
-     * operation.
-     */
-    public static class AddResult {
-
-        private final String mTag;
-        private final boolean mReplaced;
-
-        /**
-         * Construct an immutable AddResult.
-         * @param tag The unique tag for the section.
-         * @param replaced {@code true} if the add operation caused the adapter to replace an existing section.
-         */
-        public AddResult(String tag, boolean replaced) {
-            mTag = tag;
-            mReplaced = replaced;
-        }
-
-        /**
-         * @return The unique tag for the section.
-         */
-        @NonNull
-        public String getTag() {
-            return mTag;
-        }
-
-        /**
-         * @return {@code true} if the add operation caused the adapter to replace an existing section.
-         */
-        public boolean wasReplaced() {
-            return mReplaced;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("{%s, %s}", mTag, mReplaced);
-        }
-
-        @Override
-        public int hashCode() {
-            return mTag.hashCode();
-        }
+        throw new IllegalStateException("Could not find model at the given adapter position: " + adapterPosition);
     }
 }
